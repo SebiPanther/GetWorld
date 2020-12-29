@@ -1,5 +1,6 @@
 #!/bin/bash
 #Crawler zum abrufen der #rC3
+IFS=$'\n'
 UrlsOrgSource="https://gist.githubusercontent.com/MichaelKreil/e967f4b91b3c147fc8b414f88bde9dae/raw/5ce26dccc0275894c6ce77266bd8251f52700533/rc3world_urls_2020-12-28-23-00"
 UrlsFile="Urls.txt"
 UrlsFileTmp="UrlsTmp.txt"
