@@ -18,8 +18,16 @@ function AnalyseJson {
 	do
 		echo $ProtocolPrefix$path/$tile >> $UrlsFileTmp
 	done
-	local countTilesets=$(echo "$tilesets" | wc -l)
+	local countTilesets=$(echo -n "$tilesets" | wc -l)
 	echo -n $countTilesets Tilesets found!...
+		
+	local sounds=$(jq -r ".layers[]|select(.properties != null)|.properties[]|select(.name==\"playAudio\",.name==\"playAudioLoop\").value" $jsonFull)
+	for sound in $sounds
+	do
+		echo $ProtocolPrefix$path/$tile >> $UrlsFileTmp
+	done
+	local countSounds=$(echo -n "$sounds" | wc -l)
+	echo -n $countSounds Sounds found!...
 	
 	local maps=$(jq -r ".layers[]|select(.properties != null)|.properties[]|select(.name==\"exitUrl\",.name==\"exitSceneUrl\").value" $jsonFull)
 	local count=0
@@ -33,12 +41,9 @@ function AnalyseJson {
 			echo $ProtocolPrefix$path/$map >> $UrlsFileTmp
 		fi
 	done
-	local countMaps=$(echo "$maps" | wc -l)
+	local countMaps=$(echo -n "$maps" | wc -l)
 	echo $countMaps Maps found!
-	
-	
 }  
-
 #Download base URLs if are not available
 if [ ! -f $UrlsFile ]; then
     echo $UrlsFile not found - download it now!
@@ -46,7 +51,7 @@ if [ ! -f $UrlsFile ]; then
 fi
 
 echo Download know files from File $UrlsFile!
-wget -w 3 --timeout=3 --tries=5 --retry-connrefused -N -v -x -i $UrlsFile
+wget --timeout=3 --tries=3 --no-check-certificate --retry-connrefused -nc -v -x -i $UrlsFile #-w 3 -N
 
 #Run Analyse of the downloaded json files
 echo Analyse downloaded Files!
