@@ -1,5 +1,5 @@
 #!/bin/bash
-#Crawler zum abrufen der #rC3
+#Crawler to download #rC3
 IFS=$'\n'
 UrlsOrgSource="lobby.maps.at.rc3.world/main.json"
 UrlsFileTiles="UrlsTiles.txt"
@@ -12,7 +12,6 @@ ProtocolPrefix="https://"
 Retries=1
 Delay=3
 
-#Funktion um Daten zu holen
 function GetFileFromWeb {
 	local url=$1
 	local destination=${url#"$ProtocolPrefix"}
@@ -37,7 +36,6 @@ function GetFileFromWeb {
 	fi
 }
 
-#Hole erste Map
 function AnalyseJson {
 	local jsonFull=$1
 	local file=$(basename $jsonFull)
@@ -79,29 +77,32 @@ function AnalyseJson {
 	for mapFull in $maps
 	do
 		local map=$(echo $mapFull | cut -f1 -d"#")
+		
 		if [[ "$map" == https\:\/\/* ]]
 		then
 			echo $map >> $UrlsFileMaps
 			GetFileFromWeb $map
 			local destination=${map#"$ProtocolPrefix"}
-			if [[ -f $destination ]]; then
-				if ! grep -q $destination $JsonFilesFinished; then
-					AnalyseJson $destination
+			local nextJsonFile=$(realpath -m $destination --relative-base=./)
+			if [[ -f $nextJsonFile ]]; then
+				if ! grep -q $nextJsonFile $JsonFilesFinished; then
+					AnalyseJson $nextJsonFile #form correct panth without ".."
 				fi
 			else
-				echo Json $destination not Found - ignored for Analyses
-				echo $destination >> $JsonFilesFinished
+				echo Json $nextJsonFile not Found - ignored for Analyses
+				echo $nextJsonFile >> $JsonFilesFinished
 			fi
 		else
 			echo $ProtocolPrefix$path/$map > $UrlsFileMaps
 			GetFileFromWeb $ProtocolPrefix$path/$map
-			if [[ -f $path/$map ]]; then
-				if ! grep -q $path/$map $JsonFilesFinished; then
-					AnalyseJson $path/$map
+				local nextJsonFile=$(realpath -m $path/$map --relative-base=./)
+			if [[ -f $nextJsonFile ]]; then
+				if ! grep -q $nextJsonFile $JsonFilesFinished; then
+					AnalyseJson $nextJsonFile #form correct panth without ".."
 				fi
 			else
-				echo Json $path/$map not Found - ignored for Analyses
-				echo $path/$map >> $JsonFilesFinished
+				echo Json $nextJsonFile not Found - ignored for Analyses
+				echo $nextJsonFile >> $JsonFilesFinished
 			fi
 		fi
 	done
