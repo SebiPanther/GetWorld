@@ -29,7 +29,7 @@ function GetFileFromWeb {
 			fi
 		done
 				
-		if [[ -f $destination ]]; then
+		if [[ ! -f $destination ]]; then
 			echo "Download unsuccesful (added to" $UrlsFileNotFound "):" $url
 			echo $url >> $UrlsFileNotFound
 		fi
@@ -95,7 +95,7 @@ function AnalyseJson {
 		else
 			echo $ProtocolPrefix$path/$map > $UrlsFileMaps
 			GetFileFromWeb $ProtocolPrefix$path/$map
-				local nextJsonFile=$(realpath -m $path/$map --relative-base=./)
+			local nextJsonFile=$(realpath -m $path/$map --relative-base=./)
 			if [[ -f $nextJsonFile ]]; then
 				if ! grep -q $nextJsonFile $JsonFilesFinished; then
 					AnalyseJson $nextJsonFile #form correct panth without ".."
