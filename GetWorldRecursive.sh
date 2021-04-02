@@ -1,7 +1,7 @@
 #!/bin/bash
-#Crawler to download #rC3
+#Crawler to download #divocWorld
 IFS=$'\n'
-UrlsOrgSource="lobby.maps.at.rc3.world/main.json"
+UrlsOrgSource="world.di.c3voc.de/maps/main.json"
 UrlsFileTiles="UrlsTiles.txt"
 UrlsFileSounds="UrlsSounds.txt"
 UrlsFileMaps="UrlsMaps.txt"
@@ -42,74 +42,94 @@ function AnalyseJson {
 	local path=$(dirname $jsonFull)
 	
 	echo Analyse Json $jsonFull for Tilesets...
-	local tilesets=$(jq -r .tilesets[].image $jsonFull)
-	for tile in $tilesets
-	do
-		echo $ProtocolPrefix$path/$tile >> $UrlsFileTiles
-		GetFileFromWeb $ProtocolPrefix$path/$tile
-	done
-	local countTilesets=$(echo -n "$tilesets" | wc -l)
-	echo $countTilesets Tilesets in $jsonFull found!
-		
-	local sounds=$(jq -r ".layers[]|select(.properties != null)|.properties[]|select(.name==\"playAudio\",.name==\"playAudioLoop\").value" $jsonFull)
-	for sound in $sounds
-	do
-		echo $ProtocolPrefix$path/$tile >> $UrlsFileSounds
-		GetFileFromWeb $ProtocolPrefix$path/$tile
-	done
-	local countSounds=$(echo -n "$sounds" | wc -l)
-	echo -n $countSounds Sounds found!...
+	if jq -e . > /dev/null 2>&1 <<< $(cat $jsonFull);
+	then
+		local tilesets=$(jq -r .tilesets[].image $jsonFull)
+		for tile in $tilesets
+		do
+			echo $ProtocolPrefix$path/$tile >> $UrlsFileTiles
+			GetFileFromWeb $ProtocolPrefix$path/$tile
+		done
+		local countTilesets=$(echo -n "$tilesets" | wc -l)
+		echo $countTilesets Tilesets in $jsonFull found!
+			
+		local sounds=$(jq -r ".layers[]|select(.properties != null)|.properties[]|select(.name==\"playAudio\",.name==\"playAudioLoop\").value" $jsonFull)
+		for sound in $sounds
+		do
+			echo $ProtocolPrefix$path/$tile >> $UrlsFileSounds
+			GetFileFromWeb $ProtocolPrefix$path/$tile
+		done
+		local countSounds=$(echo -n "$sounds" | wc -l)
+		echo -n $countSounds Sounds found!...
 
-	echo Analyse Json $jsonFull for Tokens...
-	local tokens=$(jq -r ".layers[]|select(.properties != null)|.properties[]|select(.name==\"getBadge\").value" $jsonFull)
-	for token in $tokens
-	do
-		echo $token >> $Tokens
-	done
-	local countTokens=$(echo -n "$sounds" | wc -l)
-	echo $countTokens Tokens in $jsonFull found!
-	
-	echo Marked $jsonFull as done to prevent unnessary recrusion!
-	echo $jsonFull >> $JsonFilesFinished
-	
-	echo Analyse Json $jsonFull for other Maps...
-	local maps=$(jq -r ".layers[]|select(.properties != null)|.properties[]|select(.name==\"exitUrl\",.name==\"exitSceneUrl\").value" $jsonFull)
-	for mapFull in $maps
-	do
-		local map=$(echo $mapFull | cut -f1 -d"#")
+		echo Analyse Json $jsonFull for Tokens...
+		local tokens=$(jq -r ".layers[]|select(.properties != null)|.properties[]|select(.name==\"getBadge\").value" $jsonFull)
+		for token in $tokens
+		do
+			echo $token >> $Tokens
+		done
+		local countTokens=$(echo -n "$sounds" | wc -l)
+		echo $countTokens Tokens in $jsonFull found!
 		
-		if [[ "$map" == https\:\/\/* ]]
-		then
-			echo $map >> $UrlsFileMaps
-			GetFileFromWeb $map
-			local destination=${map#"$ProtocolPrefix"}
-			local nextJsonFile=$(realpath -m $destination --relative-base=./)
-			if [[ -f $nextJsonFile ]]; then
-				if ! grep -q $nextJsonFile $JsonFilesFinished; then
-					AnalyseJson $nextJsonFile #form correct panth without ".."
+		echo Marked $jsonFull as done to prevent unnessary recrusion!
+		echo $jsonFull >> $JsonFilesFinished
+		
+		echo Analyse Json $jsonFull for other Maps...
+		local maps=$(jq -r ".layers[]|select(.properties != null)|.properties[]|select(.name==\"exitUrl\",.name==\"exitSceneUrl\").value" $jsonFull)
+		echo $maps
+		for mapFull in $maps
+		do
+			echo Do main loop $mapFull!
+			local map=$(echo $mapFull | cut -f1 -d"#")
+			if [[ "$map" == https\:\/\/* ]]
+			then
+				echo $map >> $UrlsFileMaps
+				GetFileFromWeb $map
+				local destination=${map#"$ProtocolPrefix"}
+				local nextJsonFile=$(realpath -m $destination --relative-base=./)
+				if [[ -f $nextJsonFile ]]; then
+					if ! grep -q $nextJsonFile $JsonFilesFinished; then
+						AnalyseJson $nextJsonFile #form correct panth without ".."
+					fi
+				else
+					echo Json $nextJsonFile not Found - ignored for Analyses
+					echo $nextJsonFile >> $JsonFilesFinished
+				fi
+			elif [[ $mapFull == \/_\/global\/* ]]
+			then
+				local mapDomainPath=${mapFull#"/_/global/"}
+				echo $ProtocolPrefix$mapDomainPath >> $UrlsFileMaps
+				GetFileFromWeb $ProtocolPrefix$mapDomainPath
+				local nextJsonFile=$(realpath -m $mapDomainPath --relative-base=./)
+				if [[ -f $nextJsonFile ]]; then
+					if ! grep -q $nextJsonFile $JsonFilesFinished; then
+						AnalyseJson $nextJsonFile #form correct panth without ".."
+					fi
+				else
+					echo Json $nextJsonFile not Found - ignored for Analyses
+					echo $nextJsonFile >> $JsonFilesFinished
 				fi
 			else
-				echo Json $nextJsonFile not Found - ignored for Analyses
-				echo $nextJsonFile >> $JsonFilesFinished
-			fi
-		else
-			echo $ProtocolPrefix$path/$map > $UrlsFileMaps
-			GetFileFromWeb $ProtocolPrefix$path/$map
-			local nextJsonFile=$(realpath -m $path/$map --relative-base=./)
-			if [[ -f $nextJsonFile ]]; then
-				if ! grep -q $nextJsonFile $JsonFilesFinished; then
-					AnalyseJson $nextJsonFile #form correct panth without ".."
+				echo $ProtocolPrefix$path/$map >> $UrlsFileMaps
+				GetFileFromWeb $ProtocolPrefix$path/$map
+				local nextJsonFile=$(realpath -m $path/$map --relative-base=./)
+				if [[ -f $nextJsonFile ]]; then
+					if ! grep -q $nextJsonFile $JsonFilesFinished; then
+						AnalyseJson $nextJsonFile #form correct panth without ".."
+					fi
+				else
+					echo Json $nextJsonFile not Found - ignored for Analyses
+					echo $nextJsonFile >> $JsonFilesFinished
 				fi
-			else
-				echo Json $nextJsonFile not Found - ignored for Analyses
-				echo $nextJsonFile >> $JsonFilesFinished
 			fi
-		fi
-	done
-	local countMaps=$(echo -n "$maps" | wc -l)
-	echo $countMaps Maps in $jsonFull found!
+		done
+		local countMaps=$(echo -n "$maps" | wc -l)
+		echo $countMaps Maps in $jsonFull found!
 	
-	echo $jsonFull Really done!
+		echo $jsonFull successful done!
+	else
+		echo No Valid json in $jsonFull!
+	fi
 }
 
 echo -n >> $JsonFilesFinished
